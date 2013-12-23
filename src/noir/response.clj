@@ -1,8 +1,8 @@
 (ns noir.response
   "Simple response helpers to change the content type, redirect, or return a canned response"
-  (:use [noir.request :only [*request*]])
-  (:refer-clojure :exclude [empty])
-  (:require [cheshire.core :as json]))
+  (:use [noir.request :only [*request*]]
+        [noir.util])
+  (:refer-clojure :exclude [empty]))
 
 (defn- ->map [c]
   (if-not (map? c)
@@ -16,7 +16,7 @@
   (set-headers {\"x-csrf\" csrf}
     (common/layout [:p \"hey\"]))"
   [headers content]
-  (update-in (->map content) [:headers] merge headers))
+  (update-in (->map content) [:headers ] merge headers))
 
 (defn content-type
   "Wraps the response with the given content type and sets the body to the content."
@@ -28,18 +28,29 @@
   [content]
   (content-type "text/xml; charset=utf-8" content))
 
-(defn json
-  "Wraps the response in the json content type and generates JSON from the content"
-  [content]
-  (content-type "application/json; charset=utf-8"
-                (json/generate-string content)))
+(let [generate-string (try-intern 'cheshire.core 'generate-string)
+      generate-string*
+      (fn [content]
+        (if generate-string
+          (generate-string content)
+          (errln "Do nothing."
+            "You can add `[cheshire \"5.3.0\"]` to your :dependencies.")))]
+  (defn json
+    "Wraps the response in the json content type and generates JSON from the content.
 
-(defn jsonp
-  "Generates JSON for the given content and creates a javascript response for calling
-  func-name with it."
-  [func-name content]
-  (content-type "application/json; charset=utf-8"
-                (str func-name "(" (json/generate-string content) ");")))
+    Add `[cheshire \"5.3.0\"]` to your :dependencies."
+    [content]
+    (content-type "application/json; charset=utf-8"
+      (generate-string* content)))
+
+  (defn jsonp
+    "Generates JSON for the given content and creates a javascript response for calling
+    func-name with it.
+
+    Add `[cheshire \"5.3.0\"]` to your :dependencies."
+    [func-name content]
+    (content-type "application/json; charset=utf-8"
+      (str func-name "(" (generate-string* content) ");"))))
 
 (defn status
   "Wraps the content in the given status code"
@@ -66,10 +77,10 @@
    if request is bound to a var"
   ([url] (redirect url :found *request*))
   ([url type] (redirect url type *request*))
-  ([url type request] 
+  ([url type request]
     (let [context (:context request)
-          url     (if (and context (not (.contains url "://")))
-                    (str context url) url)] 
+          url (if (and context (not (.contains url "://")))
+                (str context url) url)]
       {:status (case type
                  :permanent 301
                  :found 302
@@ -91,4 +102,4 @@
    and calls pr-str on the Clojure data stuctures passed in."
   [data]
   (content-type "application/edn; charset=utf-8"
-                (pr-str data)))
+    (pr-str data)))

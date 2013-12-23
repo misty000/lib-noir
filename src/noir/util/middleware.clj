@@ -1,15 +1,14 @@
 (ns noir.util.middleware
   (:use [noir.request :only [*request*]]
         [noir.response :only [redirect]]
-        [compojure.core :only [routes]]
-        [compojure.handler :only [api]]
-        [hiccup.middleware :only [wrap-base-url]]
         [noir.validation :only [wrap-noir-validation]]
         [noir.cookies :only [wrap-noir-cookies]]
         [noir.session :only [mem wrap-noir-session wrap-noir-flash]]
+        [noir.util]
         [ring.middleware.multipart-params :only [wrap-multipart-params]]
         [ring.middleware.session.memory :only [memory-store]]
-        [ring.middleware.format :refer [wrap-restful-format]])
+        [compojure.core :only [routes]]
+        [compojure.handler :only [api]])
   (:require [clojure.string :as s]))
 
 (defn wrap-if [handler pred wrapper & args]
@@ -30,13 +29,13 @@
     (throw (ex-info "must have an even number of rewrites: " {:rewrites rewrites})))
   (let [rules (partition 2 rewrites)]
     (fn [req]
-      (handler (update-in req [:uri]
-                          (fn [uri]
-                            (or (first (keep (fn [[pattern replacement]]
-                                               (when (re-find pattern uri)
-                                                 (s/replace uri pattern replacement)))
-                                             rules))
-                                uri)))))))
+      (handler (update-in req [:uri ]
+                 (fn [uri]
+                   (or (first (keep (fn [[pattern replacement]]
+                                      (when (re-find pattern uri)
+                                        (s/replace uri pattern replacement)))
+                                rules))
+                     uri)))))))
 
 (defn wrap-request-map [handler]
   (fn [req]
@@ -53,7 +52,7 @@
         (if (= (headers "host") canonical)
           (app req)
           (redirect (str (name (:scheme req)) "://" canonical (:uri req))
-                    :permanent))))))
+            :permanent ))))))
 
 (defn wrap-force-ssl
   "If the request's scheme is not https, redirect with https.
@@ -62,15 +61,15 @@
   (fn [req]
     (let [headers (:headers req)]
       (if (or (= :https (:scheme req))
-              (= "https" (headers "x-forwarded-proto")))
+            (= "https" (headers "x-forwarded-proto")))
         (app req)
-        (redirect (str "https://" (headers "host") (:uri req)) :permanent)))))
+        (redirect (str "https://" (headers "host") (:uri req)) :permanent )))))
 
 (defn wrap-strip-trailing-slash
   "If the requested url has a trailing slash, remove it."
   [handler]
   (fn [request]
-    (handler (update-in request [:uri] s/replace #"(?<=.)/$" ""))))
+    (handler (update-in request [:uri ] s/replace #"(?<=.)/$" ""))))
 
 (defn wrap-access-rules
   "wraps the handler with the supplied access rules.
@@ -134,61 +133,78 @@
            unmapped-rules false} (group-by map? rules)]
       (fn [req]
         (handler
-          (assoc req :access-rules
-            (if (not-empty unmapped-rules)
-                  (conj mapped-rules {:redirect "/" :rules unmapped-rules})
-                  mapped-rules)))))))
+          (assoc req :access-rules (if (not-empty unmapped-rules)
+                                     (conj mapped-rules {:redirect "/" :rules unmapped-rules})
+                                     mapped-rules)))))))
 
 (defn- wrap-middleware [routes [wrapper & more]]
   (if wrapper (recur (wrapper routes) more) routes))
 
-(defn app-handler
-  "creates the handler for the application and wraps it in base middleware:
-  - wrap-request-map
-  - api
-  - wrap-multipart-params
-  - wrap-noir-validation
-  - wrap-noir-cookies
-  - wrap-noir-flash
-  - wrap-noir-session
+(let [wrap-restful-format (try-intern 'ring.middleware.format 'wrap-restful-format)
+      wrap-base-url (try-intern 'hiccup.middleware 'wrap-base-url)]
+  (defn app-handler
+    "creates the handler for the application and wraps it in base middleware:
+    - wrap-request-map
+    - api
+    - wrap-multipart-params
+    - wrap-noir-validation
+    - wrap-noir-cookies
+    - wrap-noir-flash
+    - wrap-noir-session
 
-  :session-options - optional map specifying Ring session parameters, eg: {:cookie-attrs {:max-age 1000}}
-  :store           - deprecated: use sesion-options instead!
-  :multipart       - an optional map of multipart-params middleware options
-  :middleware      - a vector of any custom middleware wrappers you wish to supply
-  :formats         - optional vector containing formats that should be serialized and
-                     deserialized, eg:
+    :session-options - optional map specifying Ring session parameters, eg: {:cookie-attrs {:max-age 1000}}
+    :store           - deprecated: use sesion-options instead!
+    :multipart       - an optional map of multipart-params middleware options
+    :middleware      - a vector of any custom middleware wrappers you wish to supply
+    :formats         - optional vector containing formats that should be serialized and
+                       deserialized, eg:
 
-                     :formats [:json-kw :edn]
+                       :formats [:json-kw :edn]
 
-                  available formats:
-                  :json - JSON with string keys in :params and :body-params
-                  :json-kw - JSON with keywodized keys in :params and :body-params
-                  :yaml - YAML format
-                  :yaml-kw - YAML format with keywodized keys in :params and :body-params
-                  :edn - Clojure format
-                  :yaml-in-html - yaml in a html page (useful for browser debugging)
+                    available formats:
+                    :json - JSON with string keys in :params and :body-params
+                    :json-kw - JSON with keywodized keys in :params and :body-params
+                    :yaml - YAML format
+                    :yaml-kw - YAML format with keywodized keys in :params and :body-params
+                    :edn - Clojure format
+                    :yaml-in-html - yaml in a html page (useful for browser debugging)
 
-  :access-rules - a vector of access rules you wish to supply,
-                  each rule should a function or a rule map as specified in wrap-access-rules, eg:
+                    !!! Add `[ring-middleware-format \"0.3.1\"]` to your :dependencies.
 
-                  :access-rules [rule1
-                                 rule2
-                                 {:redirect \"/unauthorized1\"
-                                  :rules [rule3 rule4]}]"
-  [app-routes & {:keys [session-options store multipart middleware access-rules formats]}]
-  (letfn [(wrap-middleware-format [handler]
-            (if formats (wrap-restful-format handler :formats formats) handler))]
-    (-> (apply routes app-routes)
+    :access-rules - a vector of access rules you wish to supply,
+                    each rule should a function or a rule map as specified in wrap-access-rules, eg:
+
+                    :access-rules [rule1
+                                   rule2
+                                   {:redirect \"/unauthorized1\"
+                                    :rules [rule3 rule4]}]"
+    [app-routes & {:keys [session-options store multipart middleware access-rules formats]}]
+    (let [wrap-middleware-format*
+          (fn [handler]
+            (if formats
+              (if wrap-restful-format
+                (wrap-restful-format handler :formats formats)
+                (do
+                  (errln "Ignore `:formats` option."
+                    "You can add `[ring-middleware-format \"0.3.1\"]` to your :dependencies.")
+                  handler))
+              handler))
+
+          wrap-base-url*
+          (fn [handler]
+            (if wrap-base-url
+              (wrap-base-url handler)
+              handler))]
+      (-> (apply routes app-routes)
         (wrap-middleware middleware)
         (wrap-request-map)
         (api)
-        (wrap-base-url)
-        (wrap-middleware-format)
+        (wrap-base-url*)
+        (wrap-middleware-format*)
         (with-opts wrap-multipart-params multipart)
         (wrap-access-rules access-rules)
         (wrap-noir-validation)
         (wrap-noir-cookies)
         (wrap-noir-flash)
         (wrap-noir-session
-         (update-in session-options [:store] #(or % (memory-store mem)))))))
+          (update-in session-options [:store ] #(or % (memory-store mem))))))))

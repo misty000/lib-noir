@@ -28,11 +28,11 @@
    checked."
   ([k] (get k nil))
   ([k default]
-   (let [str-k (k->s k)]
-     (if-let [v (or (get-in @*new-cookies* [str-k :value])
-                    (get-in *cur-cookies* [str-k :value]))]
-       v
-       default))))
+    (let [str-k (k->s k)]
+      (if-let [v (or (get-in @*new-cookies* [str-k :value ])
+                   (get-in *cur-cookies* [str-k :value ]))]
+        v
+        default))))
 
 (defn signed-name [k]
   "Construct the name of the signing cookie using a simple suffix."
@@ -46,23 +46,23 @@
   (let [actual-v (if (map? v) (:value v) v)]
     (put! k v)
     (put! (signed-name k)
-          (let [signed-v (crypt/sha1-sign-hex sign-key actual-v)]
-            (if (map? v) ;; If previous value was a map with other attributes,
-              (assoc v :value signed-v) ;; Place the signed value in a similar map,
-              signed-v))))) ;; Otherwise just signed value.
+      (let [signed-v (crypt/sha1-sign-hex sign-key actual-v)]
+        (if (map? v) ;; If previous value was a map with other attributes,
+          (assoc v :value signed-v) ;; Place the signed value in a similar map,
+          signed-v))))) ;; Otherwise just signed value.
 
 (defn get-signed
   "Get the value of a cookie from the request using 'get'. Verifies that a signing
    cookie also exists. If not, returns default or nil. "
   ([sign-key k] (get-signed sign-key k nil))
   ([sign-key k default]
-     (let [v (get k)
-           stored-sig (get (signed-name k)) ]
-       (if (or (nil? stored-sig) ;; If signature not available,
-               (nil? v) ;; or value is not found,
-               (not= (crypt/sha1-sign-hex sign-key v) stored-sig)) ;; or sig mismatch,
-         default ;; return default.
-         v)))) ;; otherwise return the value.
+    (let [v (get k)
+          stored-sig (get (signed-name k))]
+      (if (or (nil? stored-sig) ;; If signature not available,
+            (nil? v) ;; or value is not found,
+            (not= (crypt/sha1-sign-hex sign-key v) stored-sig)) ;; or sig mismatch,
+        default ;; return default.
+        v)))) ;; otherwise return the value.
 
 (defn noir-cookies [handler]
   (fn [request]

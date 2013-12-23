@@ -59,9 +59,9 @@
   and then removes it from the session."
   ([k] (get! k nil))
   ([k default]
-   (let [cur (get k default)]
-     (remove! k)
-     cur)))
+    (let [cur (get k default)]
+      (remove! k)
+      cur)))
 
 (defn get-in!
   "Destructive get from the session. This returns the current value of the path
@@ -84,22 +84,22 @@
     #(apply (partial update-in % ks f) args)))
 
 (defn ^:private noir-session [handler]
-   "Store noir session keys in a :noir map, because other middleware that
-   expects pure functions may delete keys, and simply merging won't work.
-   Ring takes (not (contains? response :session) to mean: don't update session.
-   Ring takes (nil? (:session resonse) to mean: delete the session.
-   Because noir-session mutates :session, it needs to duplicate ring/wrap-session
-   functionality to handle these cases."
+  "Store noir session keys in a :noir map, because other middleware that
+  expects pure functions may delete keys, and simply merging won't work.
+  Ring takes (not (contains? response :session) to mean: don't update session.
+  Ring takes (nil? (:session resonse) to mean: delete the session.
+  Because noir-session mutates :session, it needs to duplicate ring/wrap-session
+  functionality to handle these cases."
   (fn [request]
-    (binding [*noir-session* (atom (clojure.core/get-in request [:session :noir] {}))]
-      (remove! :_flash)
+    (binding [*noir-session* (atom (clojure.core/get-in request [:session :noir ] {}))]
+      (remove! :_flash )
       (when-let [resp (handler request)]
-        (if (=  (clojure.core/get-in request [:session :noir] {})  @*noir-session*)
+        (if (= (clojure.core/get-in request [:session :noir ] {}) @*noir-session*)
           resp
-          (if (contains? resp :session)
+          (if (contains? resp :session )
             (if (nil? (:session resp))
               resp
-              (assoc-in resp [:session :noir] @*noir-session*))
+              (assoc-in resp [:session :noir ] @*noir-session*))
             (assoc resp :session (assoc (:session request) :noir @*noir-session*))))))))
 
 (defn wrap-noir-session
@@ -129,11 +129,11 @@
 (defn flash-get
   "Retrieve the flash stored value."
   ([k]
-     (flash-get k nil))
+    (flash-get k nil))
   ([k not-found]
-   (let [in (clojure.core/get-in @*noir-flash* [:incoming k])
-         out (clojure.core/get-in @*noir-flash* [:outgoing k])]
-     (or out in not-found))))
+    (let [in (clojure.core/get-in @*noir-flash* [:incoming k])
+          out (clojure.core/get-in @*noir-flash* [:outgoing k])]
+      (or out in not-found))))
 
 (defn ^:private noir-flash [handler]
   (fn [request]
@@ -148,8 +148,8 @@
   "A stateful layer over wrap-flash."
   [handler]
   (-> handler
-      (noir-flash)
-      (wrap-flash)))
+    (noir-flash)
+    (wrap-flash)))
 
 (defn wrap-noir-flash*
   "A stateful layer over wrap-flash. Expects that wrap-flash has already
