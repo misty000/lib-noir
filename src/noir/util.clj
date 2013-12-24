@@ -8,5 +8,5 @@
     (catch Exception e)))
 
 (defn errln [& more]
-  (binding [*out* System/err]
+  (binding [*out* *err*]
     (apply println more)))
