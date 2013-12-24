@@ -12,16 +12,16 @@
   (let [_ (if-not salt
             (.toString data)
             (let [[s d] (map
-                          (memfn toString)
-                          [salt data])]
+                         (memfn toString)
+                         [salt data])]
               (apply str [s d s])))
         hash-obj (doto (MessageDigest/getInstance instance-type)
                    .reset
                    (.update
-                     (.getBytes _)))]
+                    (.getBytes _)))]
     (apply str
-      (map (partial format "%02x")
-        (.digest hash-obj)))))
+           (map (partial format "%02x")
+                (.digest hash-obj)))))
 
 (defn md5
   [data & salt]
@@ -37,9 +37,9 @@
 
 (defn gen-salt
   ([size]
-    (BCrypt/gensalt size))
+   (BCrypt/gensalt size))
   ([]
-    (BCrypt/gensalt)))
+   (BCrypt/gensalt)))
 
 (defn encrypt
   "Encrypt the given string with a generated or supplied salt. Uses BCrypt for strong hashing."

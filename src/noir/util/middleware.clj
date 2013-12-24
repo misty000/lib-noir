@@ -6,9 +6,7 @@
         [noir.session :only [mem wrap-noir-session wrap-noir-flash]]
         [noir.util]
         [ring.middleware.multipart-params :only [wrap-multipart-params]]
-        [ring.middleware.session.memory :only [memory-store]]
-        [compojure.core :only [routes]]
-        [compojure.handler :only [api]])
+        [ring.middleware.session.memory :only [memory-store]])
   (:require [clojure.string :as s]))
 
 (defn wrap-if [handler pred wrapper & args]
@@ -29,13 +27,13 @@
     (throw (ex-info "must have an even number of rewrites: " {:rewrites rewrites})))
   (let [rules (partition 2 rewrites)]
     (fn [req]
-      (handler (update-in req [:uri ]
-                 (fn [uri]
-                   (or (first (keep (fn [[pattern replacement]]
-                                      (when (re-find pattern uri)
-                                        (s/replace uri pattern replacement)))
-                                rules))
-                     uri)))))))
+      (handler (update-in req [:uri]
+                          (fn [uri]
+                            (or (first (keep (fn [[pattern replacement]]
+                                               (when (re-find pattern uri)
+                                                 (s/replace uri pattern replacement)))
+                                             rules))
+                                uri)))))))
 
 (defn wrap-request-map [handler]
   (fn [req]
@@ -52,7 +50,7 @@
         (if (= (headers "host") canonical)
           (app req)
           (redirect (str (name (:scheme req)) "://" canonical (:uri req))
-            :permanent ))))))
+                    :permanent))))))
 
 (defn wrap-force-ssl
   "If the request's scheme is not https, redirect with https.
@@ -61,15 +59,15 @@
   (fn [req]
     (let [headers (:headers req)]
       (if (or (= :https (:scheme req))
-            (= "https" (headers "x-forwarded-proto")))
+              (= "https" (headers "x-forwarded-proto")))
         (app req)
-        (redirect (str "https://" (headers "host") (:uri req)) :permanent )))))
+        (redirect (str "https://" (headers "host") (:uri req)) :permanent)))))
 
 (defn wrap-strip-trailing-slash
   "If the requested url has a trailing slash, remove it."
   [handler]
   (fn [request]
-    (handler (update-in request [:uri ] s/replace #"(?<=.)/$" ""))))
+    (handler (update-in request [:uri] s/replace #"(?<=.)/$" ""))))
 
 (defn wrap-access-rules
   "wraps the handler with the supplied access rules.
@@ -133,15 +131,22 @@
            unmapped-rules false} (group-by map? rules)]
       (fn [req]
         (handler
-          (assoc req :access-rules (if (not-empty unmapped-rules)
-                                     (conj mapped-rules {:redirect "/" :rules unmapped-rules})
-                                     mapped-rules)))))))
+          (assoc req :access-rules
+            (if (not-empty unmapped-rules)
+                  (conj mapped-rules {:redirect "/" :rules unmapped-rules})
+                  mapped-rules)))))))
 
 (defn- wrap-middleware [routes [wrapper & more]]
   (if wrapper (recur (wrapper routes) more) routes))
 
-(let [wrap-restful-format (try-intern 'ring.middleware.format 'wrap-restful-format)
-      wrap-base-url (try-intern 'hiccup.middleware 'wrap-base-url)]
+(let [routes (try-intern 'compojure.core 'routes)
+      api (or (try-intern 'compojure.handler 'api) identity)
+      wrap-restful-format (try-intern 'ring.middleware.format 'wrap-restful-format)
+      wrap-base-url (try-intern 'hiccup.middleware 'wrap-base-url)
+      routes* (fn [& handlers]
+                (if routes
+                  (apply routes handlers)
+                  (throw (Exception. "You can add `[compojure \"1.1.6\"]` to your :dependencies."))))]
   (defn app-handler
     "creates the handler for the application and wraps it in base middleware:
     - wrap-request-map
@@ -151,6 +156,8 @@
     - wrap-noir-cookies
     - wrap-noir-flash
     - wrap-noir-session
+
+    !!! Add `[compojure \"1.1.6\"]` to your :dependencies.
 
     :session-options - optional map specifying Ring session parameters, eg: {:cookie-attrs {:max-age 1000}}
     :store           - deprecated: use sesion-options instead!
@@ -195,7 +202,7 @@
             (if wrap-base-url
               (wrap-base-url handler)
               handler))]
-      (-> (apply routes app-routes)
+      (-> (apply routes* app-routes)
         (wrap-middleware middleware)
         (wrap-request-map)
         (api)

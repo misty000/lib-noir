@@ -14,7 +14,7 @@
     "utf-8"))
 
 (defn create-path [path create-path?]
-  (let [working-dir (File. (file-path path))]
+  (let [working-dir  (File. (file-path path))]
     (when (and create-path? (not (.exists working-dir)))
       (.mkdirs working-dir))))
 
@@ -27,7 +27,7 @@
     (with-open [in (new FileInputStream tempfile)
                 out (new FileOutputStream (file-path path filename))]
       (let [source (.getChannel in)
-            dest (.getChannel out)]
+            dest   (.getChannel out)]
         (.transferFrom dest source 0 (.size source))
         (.flush out)))))
 
@@ -38,8 +38,8 @@
   [relative-path]
   (when relative-path
     (->> relative-path
-      (str "public")
-      (io/resource))))
+         (str "public")
+         (io/resource))))
 
 (defn slurp-resource
   "Opens a reader on f and reads all its contents, returning a string.

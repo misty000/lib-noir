@@ -79,8 +79,8 @@
   ([url type] (redirect url type *request*))
   ([url type request]
     (let [context (:context request)
-          url (if (and context (not (.contains url "://")))
-                (str context url) url)]
+          url     (if (and context (not (.contains url "://")))
+                    (str context url) url)]
       {:status (case type
                  :permanent 301
                  :found 302
@@ -102,4 +102,4 @@
    and calls pr-str on the Clojure data stuctures passed in."
   [data]
   (content-type "application/edn; charset=utf-8"
-    (pr-str data)))
+                (pr-str data)))

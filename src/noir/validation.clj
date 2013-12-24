@@ -51,8 +51,8 @@
   "Returns true if a valid file was supplied"
   [m]
   (and (:size m)
-    (> (:size m) 0)
-    (:filename m)))
+       (> (:size m) 0)
+       (:filename m)))
 
 
 (defn valid-number?
@@ -69,20 +69,20 @@
   "Returns true if the string represents a number > given."
   [v n]
   (and (valid-number? v)
-    (> (Long/parseLong v) n)))
+       (> (Long/parseLong v) n)))
 
 
 (defn less-than?
   "Returns true if the string represents a number < given."
   [v n]
   (and (valid-number? v)
-    (< (Long/parseLong v) n)))
+       (< (Long/parseLong v) n)))
 
 (defn equal-to?
   "Returns true if the string represents a number = given."
   [v n]
   (and (valid-number? v)
-    (== (Long/parseLong v) n)))
+       (== (Long/parseLong v) n)))
 
 (declare ^:dynamic *errors*)
 
@@ -114,9 +114,9 @@
   (rule (not-nil? username) [:username \"Usernames must have a value.\"])"
   [passed? [field error]]
   (or passed?
-    (do
-      (set-error field error)
-      false)))
+      (do
+        (set-error field error)
+        false)))
 
 (defn errors?
   "For all fields given return true if any field contains errors. If none of the fields
