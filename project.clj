@@ -12,6 +12,9 @@
                  [cheshire "5.3.0" :scope "provided"]
                  [hiccup "1.0.4" :scope "provided"]
                  [ring-middleware-format "0.3.1" :scope "provided"]]
-  :profiles {:dev {:dependencies []}}
+  :profiles {:provided {:dependencies [[compojure "1.1.6"]
+                                       [cheshire "5.3.0"]
+                                       [hiccup "1.0.4"]
+                                       [ring-middleware-format "0.3.1"]]}}
   :plugins [[codox "0.6.6"]]
   :codox {:output-dir "doc"})
